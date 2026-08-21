@@ -136,3 +136,15 @@ it('AC8: shows the error when the group is not readable', async () => {
     expect(await screen.findByText('You must be a group member to manage its members'))
         .toBeInTheDocument();
 });
+
+it('AC5: shows the error when the payer is no longer a group member', async () => {
+    createExpense.mockResolvedValue({ errors: { form: 'Payer must be a member of the group' } });
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.type(await screen.findByLabelText('Amount'), '10');
+    await user.type(screen.getByLabelText('Description'), 'Taxi');
+    await user.click(screen.getByRole('button', { name: 'Save expense' }));
+
+    expect(await screen.findByText('Payer must be a member of the group')).toBeInTheDocument();
+});

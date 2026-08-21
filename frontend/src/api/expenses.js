@@ -21,9 +21,11 @@ export async function createExpense(id, expense) {
         body: JSON.stringify(expense)
     });
 
-    // AC2, AC3, AC6: the backend returns one message per invalid field.
     if (response.status === 400) {
-        return { errors: await response.json() };
+        const body = await response.json();
+        // AC2, AC3, AC6 come back keyed by field. A rejection that belongs to no single
+        // field, such as a payer who has left the group, comes back under "error".
+        return { errors: body.error ? { form: body.error } : body };
     }
     if (!response.ok) {
         return { errors: { form: await readError(response, 'Could not add this expense.') } };
