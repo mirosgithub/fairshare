@@ -33,6 +33,7 @@ import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.InstanceOfAssertFactories.list;
 
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
@@ -111,10 +112,19 @@ class ExpenseIntegrationTest {
                 .containsOnlyKeys(AMOUNT_FIELD, "description", "paidByUserId");
 
         assertThat(violations(new CreateExpenseRequest(BigDecimal.ZERO, "Taxi", aliceId, null)))
-                .containsEntry(AMOUNT_FIELD, "Amount must be a positive number");
+                .extractingByKey(AMOUNT_FIELD, list(String.class))
+                .contains("Amount must be a positive number");
 
         assertThat(violations(new CreateExpenseRequest(new BigDecimal("-5.00"), "Taxi", aliceId, null)))
-                .containsEntry(AMOUNT_FIELD, "Amount must be a positive number");
+                .extractingByKey(AMOUNT_FIELD, list(String.class))
+                .contains("Amount must be a positive number");
+    }
+
+    @Test
+    void ac3_rejectsAmountsSmallerThanOneCent() {
+        assertThat(violations(new CreateExpenseRequest(new BigDecimal("0.004"), "Taxi", aliceId, null)))
+                .extractingByKey(AMOUNT_FIELD, list(String.class))
+                .containsExactly("Amount must be at least 0.01");
     }
 
     @Test
@@ -169,7 +179,8 @@ class ExpenseIntegrationTest {
     void ac6_rejectsAFutureDateAndAcceptsAPastOne() {
         assertThat(violations(new CreateExpenseRequest(
                 new BigDecimal(TAXI_AMOUNT), "Taxi", aliceId, LocalDate.now().plusDays(1))))
-                .containsEntry("expenseDate", "Expense date cannot be in the future");
+                .extractingByKey("expenseDate", list(String.class))
+                .containsExactly("Expense date cannot be in the future");
 
         assertThat(violations(new CreateExpenseRequest(
                 new BigDecimal(TAXI_AMOUNT), "Taxi", aliceId, LocalDate.now().minusDays(30))))
@@ -209,11 +220,11 @@ class ExpenseIntegrationTest {
                         GroupMemberResponse::userId, GroupMemberResponse::netBalance));
     }
 
-    private Map<String, String> violations(CreateExpenseRequest request) {
+    /** A field can break more than one constraint at a time, so every message is kept. */
+    private Map<String, List<String>> violations(CreateExpenseRequest request) {
         return validator.validate(request).stream()
-                .collect(Collectors.toMap(
+                .collect(Collectors.groupingBy(
                         violation -> violation.getPropertyPath().toString(),
-                        ConstraintViolation::getMessage,
-                        (first, second) -> first));
+                        Collectors.mapping(ConstraintViolation::getMessage, Collectors.toList())));
     }
 }
