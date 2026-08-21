@@ -4,8 +4,13 @@ import { getGroupMembers } from '../api/groups';
 import { createExpense } from '../api/expenses';
 import './AddExpense.css';
 
+// Built from local date because toISOString() reports the UTC date and
+// would give yesterday for the first hours of a New Zealand day.
 function today() {
-    return new Date().toISOString().slice(0, 10);
+    const now = new Date();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${now.getFullYear()}-${month}-${day}`;
 }
 
 function validate({ amount, description, paidByUserId, expenseDate }) {

@@ -20,7 +20,10 @@ const MEMBERS = [
 ];
 
 function today() {
-    return new Date().toISOString().slice(0, 10);
+    const now = new Date();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${now.getFullYear()}-${month}-${day}`;
 }
 
 beforeEach(() => {
@@ -103,6 +106,26 @@ it('AC6: the date defaults to today and cannot be set in the future', async () =
 
     expect(date).toHaveValue(today());
     expect(date).toHaveAttribute('max', today());
+});
+
+it('AC6: the date defaults to the local date, not the UTC one', async () => {
+    const originalTimeZone = process.env.TZ;
+    process.env.TZ = 'Pacific/Auckland';
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    // 01:00 on 21 August in Auckland is still 20 August in UTC.
+    vi.setSystemTime(new Date('2026-08-20T13:00:00Z'));
+
+    try {
+        renderPage();
+
+        const date = await screen.findByLabelText('Date');
+
+        expect(date).toHaveValue('2026-08-21');
+        expect(date).toHaveAttribute('max', '2026-08-21');
+    } finally {
+        vi.useRealTimers();
+        process.env.TZ = originalTimeZone;
+    }
 });
 
 it('AC8: shows the error when the group is not readable', async () => {
